@@ -1,0 +1,17 @@
+# list of required include directories for the current application
+submenu_inc_dir := $(submenu_dir)/include \
+             $(submenu_dir)/../app_common/include
+
+# list of required source directories for the current application
+submenu_src_dir := 
+
+# list of sources for the current application
+appsrcs :=
+
+
+# add the include and source directories to the whole project
+incdirs := $(incdirs) $(submenu_inc_dir)
+srcdirs := $(srcdirs) $(submenu_src_dir)
+
+# add the list of sources to the current list
+appsources := $(appsources) $(appsrcs)
