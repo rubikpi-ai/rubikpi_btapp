@@ -1,0 +1,115 @@
+# When including this file, the following variables must be defined in the environment:
+#  - CPU : cpu arch, mips or arm otherwise, defaults x86
+#  - btapp_demo : path to the demo to build
+#  - objlist : list of the object files to link
+#  - demo_build_dir : directory where the demo app should be compiled
+#  - demo_obj_dir : directory where the object files should be compiled
+#  - bsalibincdir : directory where the BSA library was archived
+#  - bsasharedlib : directory containing the libbsa shared lib
+#  - bsastaticlib : directory containing the libbsa static lib
+#  - appsources
+#  - srcdirs
+#  - RUBIKPI_BTAPP_SRCPATH : path to the source root path
+#  - DELIVERY_CURRENT_FOLDER :
+#  - DELIVERIES_MAIN_FOLDER :
+
+# When not specified, search the files in the source directories
+vpath %.c $(srcdirs)
+vpath %.s $(srcdirs)
+
+# Sample applications also need to include the exported BSA headers
+incdirs += $(bsalibincdir)
+
+#######################################
+#
+# BSA client library
+#
+#######################################
+ifeq ($(BSASHAREDLIB), TRUE)
+bsalib := $(bsasharedlib)
+else
+bsalib := $(bsastaticlib)
+endif
+
+#######################################
+#
+# Objects
+#
+#######################################
+c_objs := $(patsubst %.c,$(demo_obj_dir)/%.o,$(appsources))
+demo_objs := $(patsubst %.s,$(demo_obj_dir)/%.o,$(c_objs))
+
+objlist := $(demo_objs)
+
+#######################################
+#
+# Targets
+#
+#######################################
+
+.PHONY: all clean delivery
+
+all: $(btapp_demo)
+	@$(ECHO) Done building bt_$(demo_name)_demo
+
+%.s:%.S
+
+$(demo_build_dir):
+	@$(ECHO) Creating application directory '$(demo_build_dir)'.
+	-@$(MKDIR) -p $(demo_build_dir)
+
+$(demo_obj_dir):
+	@$(ECHO) Creating object directory '$(demo_obj_dir)'.
+	-@$(MKDIR) -p $(demo_obj_dir)
+
+$(demo_obj_dir)/%.o: %.c
+	@$(ECHO) Compiling [$(CC)] $<
+	@echo "include $(incdirs)"
+	$(CC) -c -MD $(CCFLAGS) -DDEMO_MODE $(GLOBAL_DEFINE) $(TARGET_DEF) $(CCINC) -o $@ $<
+
+# include the dependencies (if they exist)
+-include $(objlist:.o=.d)
+
+$(btapp_demo): $(demo_build_dir) $(demo_obj_dir) $(objlist) $(bsalib)
+ifneq ($(strip $(bsalib)),)
+	@$(ECHO) Linking application $@ with $(notdir $(bsalib))
+	@$(LINK) $(LINKFLAGS) -L $(dir $(bsalib)) $(TARGET_LINK_FLAGS) -o $@ $(objlist) -lbsa $(LINKLIBS)
+else
+	@$(ECHO) Linking application $@
+	@$(LINK) $(LINKFLAGS) $(TARGET_LINK_FLAGS) -o $@ $(objlist) $(LINKLIBS)
+endif
+
+clean:
+	@$(ECHO) Cleaning up : $(demo_obj_dir) $(demo_build_dir)
+	@$(RM) -rf $(demo_obj_dir) $(demo_build_dir)
+	@$(ECHO) Finished cleaning up bt_$(demo_name)_demo
+
+delivery:
+	@$(ECHO) Creating Delivery in $(DELIVERY_CURRENT_FOLDER)
+	@$(MKDIR) -p $(DELIVERIES_MAIN_FOLDER)
+	@$(MKDIR) -p $(DELIVERY_CURRENT_FOLDER)
+	@$(MKDIR) -p $(DELIVERY_CURRENT_FOLDER)/src/embedded/$(customer)/$(project)
+	@$(CP) -r --remove-destination $(RUBIKPI_BTAPP_SRCPATH)/embedded/$(customer)/$(project)/$(sub_menu) $(DELIVERY_CURRENT_FOLDER)/src/embedded/$(customer)/$(project)/$(sub_menu)
+	@find $(DELIVERY_CURRENT_FOLDER) -name "*.o" | xargs rm -f
+	@find $(DELIVERY_CURRENT_FOLDER) -name "*.d" | xargs rm -f
+	@find $(DELIVERY_CURRENT_FOLDER) -name ".copyarea.db" | xargs rm -f
+	@find $(DELIVERY_CURRENT_FOLDER) -name "*~" | xargs rm -f
+	@find $(DELIVERY_CURRENT_FOLDER) -name "core" | xargs rm -f
+	@find $(DELIVERY_CURRENT_FOLDER) -name ".*.cmd" | xargs rm -f
+	@find $(DELIVERY_CURRENT_FOLDER) -name "*.ko" | xargs rm -f
+	@find $(DELIVERY_CURRENT_FOLDER) -name "*.mod.c" | xargs rm -f 
+	@find $(DELIVERY_CURRENT_FOLDER) -name ".tmp_versions" | xargs rm -f -r
+	@find $(DELIVERY_CURRENT_FOLDER) -name "Module.markers" | xargs rm -f -r
+	@find $(DELIVERY_CURRENT_FOLDER) -name "Module.symvers" | xargs rm -f -r
+	@find $(DELIVERY_CURRENT_FOLDER) -name "modules.order" | xargs rm -f -r
+	@$(MKDIR) -p $(DELIVERY_CURRENT_FOLDER)/release_notes
+	@$(MKDIR) -p $(DELIVERY_CURRENT_FOLDER)/release_notes/$(customer)
+	@if [ -f $(RUBIKPI_BTAPP_ROOTPATH)/release_notes/$(customer)/Release_$(sub_menu).txt ]; then \
+		$(CP) $(RUBIKPI_BTAPP_ROOTPATH)/release_notes/$(customer)/Release_$(sub_menu).txt $(DELIVERY_CURRENT_FOLDER)/release_notes/$(customer); \
+	elif [ -f $(DELIVERY_CURRENT_FOLDER)/src/embedded/$(customer)/$(project)/$(sub_menu)/build/Release_$(sub_menu).txt ]; then \
+		$(MV) $(DELIVERY_CURRENT_FOLDER)/src/embedded/$(customer)/$(project)/$(sub_menu)/build/Release_$(sub_menu).txt $(DELIVERY_CURRENT_FOLDER)/release_notes/$(customer); \
+	else \
+		echo "    Nothing to do for release notes"; \
+	fi
+	@$(ECHO) Delivery done
+

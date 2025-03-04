@@ -1,0 +1,260 @@
+# When including this file, the following variables must be defined in the environment:
+#  - CPU : cpu arch, mips or arm otherwise, defaults x86
+#  - RUBIKPI_BTAPP_ROOTPATH : path to the root dir
+#  - RUBIKPI_BTAPP_SRCPATH : path to the src root dir
+#  - demo_name : demo name
+#  - os_name
+
+# Check if the local build machine is 32 or 64 bits for x86
+LBIT := $(shell getconf LONG_BIT)
+ifeq ($(LBIT), 64)
+    BUILD_CPU := x86_64
+else
+#$(warning Defaulting CPU to x86)
+   BUILD_CPU := x86
+endif
+
+#
+# CPU configuration (MIPS, ARM or X86)
+#
+ifeq ($(CPU), mips)
+  TARGET_DEF :=
+else
+ifeq ($(CPU), arm)
+  TARGET_DEF :=
+else
+ifeq ($(CPU), arm64)
+  TARGET_DEF :=
+else
+  # Check if the local machine is 32 or 64 bits
+  CPU := $(BUILD_CPU)
+  TARGET_DEF :=
+endif
+endif
+endif
+
+#
+# Tools configuration
+#
+MKDIR      := mkdir
+CP         := cp
+RM         := rm
+ECHO       := echo
+SED        := sed
+TOUCH      := touch
+MV         := mv
+CD         := cd
+TAR        := tar
+AWK        := awk
+SORT       := sort
+
+#
+# Compiler configuration
+#
+OPTIM ?= TIME
+DEBUG ?= TRUE
+FORTIFY ?= TRUE
+#
+# ------------------    Executables   ----------------------
+#
+ifeq ($(CPU), mips)
+
+  # priority is given to the environment setting MIPSGCC and MIPSGCCLIBPATH
+  ifdef MIPSGCC
+    CC := $(MIPSGCC)
+    LINK := $(MIPSGCC)
+  else
+    # standard mips compiler
+    CC := mipsel-uclibc-gcc
+    LINK := mipsel-uclibc-gcc
+  endif
+  # path default value
+  MIPSGCCLIBPATH ?= /opt/toolchains/crosstools_hf-linux-2.6.18.0_gcc-4.2-10ts_uclibc-nptl-0.9.29-20070423_20080721/mipsel-linux-uclibc/lib
+
+  CCCPUFLAGS := $(MIPSCCFLAGS)
+  LINKCPUFLAGS := $(patsubst %,-L %,$(MIPSGCCLIBPATH)) $(MIPSLINKFLAG)
+
+else
+ifeq ($(CPU), arm)
+
+  # priority is given to the environment setting ARMGCC and ARMGCCLIBPATH
+  ifdef ARMGCC
+    CC = $(ARMGCC)
+    LINK = $(ARMGCC)
+  else
+    # standard ARM compiler
+    LINK = arm_v7_vfp_le-gcc
+  endif
+  # path library default value
+  ARMGCCLIBPATH ?= /opt/toolchains/ToolChain_arm_v7/arm_v7_vfp_le/target/lib/
+
+  ARMCCFLAGS += -std=gnu99
+  CCCPUFLAGS := $(ARMCCFLAGS)
+  LINKCPUFLAGS := $(patsubst %,-L %,$(ARMGCCLIBPATH)) $(ARMLINKFLAG)
+  
+else
+ifeq ($(CPU), arm64)
+
+  # priority is given to the environment setting ARMGCC and ARMGCCLIBPATH
+  ifdef ARMGCC
+    CC = $(ARMGCC)
+    LINK = $(ARMGCC)
+  else
+    # standard ARM compiler
+    LINK = arm_v7_vfp_le-gcc
+  endif
+  # path library default value
+  ARMGCCLIBPATH ?= /opt/toolchains/ToolChain_arm_v7/arm_v7_vfp_le/target/lib/
+
+  ARMCCFLAGS += -std=gnu99
+  CCCPUFLAGS := $(ARMCCFLAGS)
+  LINKCPUFLAGS := $(patsubst %,-L %,$(ARMGCCLIBPATH)) $(ARMLINKFLAG)
+else
+ifeq ($(CPU), android)
+
+  NDK_TOOLCHAIN_ROOT = /home/chrisle/project/NDK/android-ndk-r10d/toolchains/arm-linux-androideabi-4.8/prebuilt/linux-x86_64/
+  NDK_PLATFORM_ROOT = /home/chrisle/project/NDK/android-ndk-r10d/platforms/android-21/arch-arm/
+
+  CC = $(NDK_TOOLCHAIN_ROOT)bin/arm-linux-androideabi-gcc
+  LINK = $(NDK_TOOLCHAIN_ROOT)bin/arm-linux-androideabi-gcc
+
+  ARMGCCLIBPATH = $(NDK_PLATFORM_ROOT)usr/lib
+  ARMCCFLAGS += -fPIE -I$(NDK_PLATFORM_ROOT)usr/include
+  ARMLINKFLAG = -fPIE -pie $(NDK_TOOLCHAIN_ROOT)lib/gcc/arm-linux-androideabi/4.8/libgcc.a --sysroot=$(NDK_PLATFORM_ROOT)
+
+  CCCPUFLAGS := $(ARMCCFLAGS)
+  LINKCPUFLAGS := $(patsubst %,-L%,$(ARMGCCLIBPATH)) $(ARMLINKFLAG)
+  
+else
+ifeq ($(CPU), ipp)
+
+  LINK := ipp-freebsd-gcc -mtarget=LDA3
+  CC := ipp-freebsd-gcc -mtarget=LDA3
+  CCCPUFLAGS := $(IPPCCFLAGS)
+  LINKCPUFLAGS := $(patsubst %,-L %,$(IPPGCCLIBPATH)) $(IPPLINKFLAG)
+
+else
+ifeq ($(CPU), x86)
+
+  LINK := gcc
+  CC := gcc
+  CCCPUFLAGS := $(X86CCFLAGS) -m32
+  LINKCPUFLAGS := $(patsubst %,-L %,$(X86GCCLIBPATH)) $(X86LINKFLAG) -m32
+
+else
+ifeq ($(CPU), x86_64)
+
+  LINK := gcc
+  CC := gcc
+  CCCPUFLAGS := $(X86_64CCFLAGS) -m64
+  LINKCPUFLAGS := $(patsubst %,-L %,$(X86_64GCCLIBPATH)) $(X86_64LINKFLAG) -m64
+
+else
+ifeq ($(CPU), viera)
+
+  CC   := $(VIERAGCC)
+  LINK := $(VIERAGCC)
+  CCCPUFLAGS := $(VIERACCFLAGS)
+
+else
+
+  $(error CPU type not supported: $(CPU))
+
+endif
+endif
+endif
+endif
+endif
+endif
+endif
+endif
+
+# CC inclusion flags
+CCINC = $(patsubst %,-I%,$(patsubst /,/,$(incdirs)))
+
+# check if the debug is enabled
+ifeq ($(DEBUG),TRUE)
+  CCDBGFLAGS := -g
+endif
+
+# check if the compilation optimization is enabled
+ifeq ($(OPTIM),TIME)
+  CCOPTIMFLAGS := -O3
+else
+ifeq ($(OPTIM),SIZE)
+  CCOPTIMFLAGS := -Os
+else
+ifeq ($(OPTIM),NONE)
+  CCOPTIMFLAGS := -O0
+endif
+endif
+endif
+
+ifeq ($(FORTIFY),TRUE)
+  CCFORTIFYFLAGS := -D_FORTIFY_SOURCE=2
+endif
+
+# Compiler flags
+CCFLAGS = $(CCDBGFLAGS) $(CCOPTIMFLAGS) $(CCCPUFLAGS)  $(CCFORTIFYFLAGS) -DBUILDCFG -Wall -Wextra -Wno-unused-parameter -c
+
+ifeq ($(CPU), arm)
+ifneq ( , $(findstring hndtools-arm-linux-2.6.36-uclibc-4.5.3, $(ARMGCCLIBPATH)))
+CCFLAGS := $(CCFLAGS) -DPTHREAD_CONDATTR_SETCLOCK_UNDEFINED -DCLOCK_NANOSLEEP_UNDEFINED
+endif
+endif
+
+# LINK flags (command line can specify EXTRALIBS=XXX to include specific libraries)
+LINKFLAGS = $(LINKCPUFLAGS)
+ifeq ($(CPU), android)
+LINKLIBS = $(patsubst %,-l%,$(EXTRALIBS))
+else
+LINKLIBS = $(patsubst %,-l%,$(EXTRALIBS)) -lpthread -lrt
+endif
+
+# Derived path definitions
+RUBIKPI_BTAPP_DEMO_DIR := $(RUBIKPI_BTAPP_SRCPATH)/$(os_name)/$(demo_name)
+RUBIKPI_BTAPP_DEMO_BUILD_DIR := $(RUBIKPI_BTAPP_DEMO_DIR)/demo_build
+
+RUBIKPI_BTAPP_COMP_PATH := $(RUBIKPI_BTAPP_ROOTPATH)/Components
+RUBIKPI_BTAPP_PRJ_PATH := $(RUBIKPI_BTAPP_ROOTPATH)/Projects
+
+BLUETOOTH_BSA_DIR := $(RUBIKPI_BTAPP_SRCPATH)/embedded/brcm/bsa
+BLUETOOTH_BSA_SERVER_DIR := $(BLUETOOTH_BSA_DIR)/server
+BLUETOOTH_BSA_CLIENT_DIR := $(BLUETOOTH_BSA_DIR)/client
+BLUETOOTH_BSA_COM_DIR := $(BLUETOOTH_BSA_DIR)/common
+
+BSA_LIB_DIR := $(RUBIKPI_BTAPP_SRCPATH)/$(os_name)/libbsa
+
+DELIVERIES_MAIN_FOLDER := $(RUBIKPI_BTAPP_ROOTPATH)/../deliveries
+DELIVERY_VERSION := $(shell sed '/bsa_version_string/!d;s/^[^"]*"\([^"]*\)";/\L\1/' $(BLUETOOTH_BSA_COM_DIR)/bsa_version.c)
+DELIVERY_CURRENT_FOLDER := $(DELIVERIES_MAIN_FOLDER)/$(DELIVERY_VERSION)
+BINARY_DELIVERY_CURRENT_FOLDER := $(DELIVERY_CURRENT_FOLDER)-binary
+CUST_PROJECT_DELIVERY_CURRENT_FOLDER := $(DELIVERY_CURRENT_FOLDER)-$(os_name)
+
+# demo related directories
+demo_dir       := $(RUBIKPI_BTAPP_DEMO_DIR)
+demo_build_dir     := $(RUBIKPI_BTAPP_DEMO_BUILD_DIR)/$(CPU)
+demo_exe_dir       := $(RUBIKPI_BTAPP_DEMO_BUILD_DIR)/$(CPU)
+demo_obj_dir       := $(RUBIKPI_BTAPP_DEMO_BUILD_DIR)/$(CPU)/obj
+demo_cinc_dir       := $(RUBIKPI_BTAPP_SRCPATH)/$(os_name)/common/include
+demo_csrc_dir       := $(RUBIKPI_BTAPP_SRCPATH)/$(os_name)/common/source
+
+# BSA library related directories
+bsastaticlib := $(BSA_LIB_DIR)/build/$(CPU)/libbsa.a
+ifeq ($(findstring CYGWIN_NT,$(shell uname -s)),CYGWIN_NT)
+bsasharedlib := $(BSA_LIB_DIR)/build/$(CPU)/sharedlib/libbsa.dll
+else
+bsasharedlib := $(BSA_LIB_DIR)/build/$(CPU)/sharedlib/libbsa.so
+endif
+bsalibincdir := $(BSA_LIB_DIR)/include
+
+
+# demo config file dir
+demo_cfgincdir    := $(RUBIKPI_BTAPP_SRCPATH)/$(os_name)/config
+
+# name of the demo app
+btapp_demo := $(demo_build_dir)/bt_$(demo_name)_demo
+
+# base directory source, library, and target lists
+incdirs := . $(submenu_inc_dir)
+

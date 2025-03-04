@@ -1,0 +1,20 @@
+# list of required include directories for the current application
+demo_inc_dir := $(demo_dir)/include
+
+# list of required source directories for the current application
+demo_src_dir := $(demo_dir)/source
+
+# list of sources for the current application
+demo_srcs := \
+    ctn_main.c \
+    ctnc.c
+
+
+
+# add the include and source directories to the whole project
+incdirs := $(incdirs) $(demo_inc_dir)
+srcdirs := $(srcdirs) $(demo_src_dir)
+
+# add the list of sources to the current list
+appsources := $(appsources) $(demo_srcs)
+

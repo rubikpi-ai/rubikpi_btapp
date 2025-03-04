@@ -1,0 +1,30 @@
+# list of required include directories for the current application
+demo_inc_dir := $(demo_dir)/include
+
+# list of required source directories for the current application
+demo_src_dir := $(demo_dir)/source
+
+# list of sources for the current application
+demo_srcs := \
+    app_ble_main.c \
+    app_ble.c \
+    app_ble_client.c \
+    app_ble_server.c \
+    app_ble_client_xml.c \
+    app_ble_client_db.c
+
+ifeq ($(strip $(ENABLE_BLE_FWDL)), TRUE)
+    demo_srcs := $(demo_srcs) app_ble_client_otafwdl.c
+endif
+
+ifeq ($(strip $(ENABLE_BLE2_BRCM)),TRUE)
+    demo_srcs := $(demo_srcs) app_ble2_brcm.c
+endif
+
+# add the include and source directories to the whole project
+incdirs := $(incdirs) $(demo_inc_dir)
+srcdirs := $(srcdirs) $(demo_src_dir)
+
+# add the list of sources to the current list
+appsources := $(appsources) $(demo_srcs)
+

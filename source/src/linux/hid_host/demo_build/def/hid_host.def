@@ -1,0 +1,54 @@
+# list of required include directories for the current application
+demo_inc_dir := $(demo_dir)/include
+             
+
+ifeq ($(strip $(ENABLE_BTHID)),TRUE)
+demo_inc_dir := $(demo_inc_dir) ../../../../brcm/linux/bthid
+endif
+
+ifeq ($(strip $(ENABLE_BLE_AUDIO)),TRUE)
+demo_inc_dir := $(demo_inc_dir) $(embdrvdir)/sbc/decoder/include
+endif
+
+ifeq ($(strip $(ENABLE_AUDIO_STREAMING)),TRUE)
+demo_inc_dir := $(demo_inc_dir) $(embdrvdir)/sbc/encoder/include
+endif
+
+# list of required source directories for the current application
+demo_src_dir := $(demo_dir)/source
+
+# list of sources for the current application
+demo_srcs := \
+    hid_host_xml.c \
+    hid_host_db.c \
+    hid_host.c \
+    hid_host_main.c
+
+
+ifeq ($(strip $(ENABLE_BTHID)),TRUE)
+demo_srcs := $(demo_srcs) app_bthid.c
+endif
+
+ifeq ($(strip $(ENABLE_ALSA)),TRUE)
+demo_srcs := $(demo_srcs) app_alsa.c
+endif
+
+ifeq ($(strip $(ENABLE_OTAFWDL)),TRUE)
+demo_srcs := $(demo_srcs) hid_host_otafwdl.c
+endif
+
+ifeq ($(strip $(ENABLE_AUDIO_STREAMING)),TRUE)
+demo_srcs := $(demo_srcs) hid_host_as.c
+endif
+
+ifeq ($(strip $(ENABLE_BLE_AUDIO)),TRUE)
+demo_srcs := $(demo_srcs) hid_host_ble_audio_sink.c
+endif
+
+# add the include and source directories to the whole project
+incdirs := $(incdirs) $(demo_inc_dir)
+srcdirs := $(srcdirs) $(demo_src_dir)
+
+# add the list of sources to the current list
+appsources := $(appsources) $(demo_srcs)
+
